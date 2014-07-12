@@ -1,0 +1,23 @@
+{
+  "name": "mocha-asynculous",
+  "version": "0.0.1",
+  "description": "Adapter to Mocha that lets you forget about the done callback",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersekdahl/mocha-asynculous.git"
+  },
+  "keywords": [
+    "mocha",
+    "async"
+  ],
+  "author": "Anders Ekdahl",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/andersekdahl/mocha-asynculous/issues"
+  },
+  "homepage": "https://github.com/andersekdahl/mocha-asynculous"
+}

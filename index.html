@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <script type="text/javascript" src="mocha.js"></script>
+  <script type="text/javascript" src="chai.js"></script>
+  <link rel="stylesheet" href="mocha.css">
+</head>
+<body>
+  <div id="mocha"></div>
+  <script>mocha.setup('bdd')</script>
+  <script>
+  (function() {
+    'use strict';
+    var origIt = window.it;
+    var _done;
+    window.it = function(description, test) {
+      origIt(description, function(done) {
+        _done = done;
+        patchAsyncs();
+        test();
+      });
+    };
+
+    var outstandingOps = 0;
+
+    function patchAsyncs() {
+      var origSetTimeout = window.setTimeout;
+      window.setTimeout = function(callback, ms) {
+        outstandingOps++;
+        origSetTimeout(function() {
+          outstandingOps--;
+          try {
+            callback();
+            callIfDone();
+          } catch(e) {
+            _done(e);
+          }
+        }, ms);
+      };
+      window.__asynculous = {
+        setTimeout: origSetTimeout
+      };
+    }
+
+    function resetAsyncs() {
+      for (var key in window.__asynculous) {
+        window[key] = window.__asynculous[key];
+      }
+    } 
+
+    function callIfDone() {
+      if (outstandingOps === 0) {
+        _done();
+        resetAsyncs();
+      }
+    }
+  }());
+  </script>
+  <script>
+  describe('Something', function() {
+    it('should do something', function() {
+      setTimeout(function() {
+        chai.expect(1).to.equal(1);
+        setTimeout(function() {
+          chai.expect(1).to.equal(1);
+        }, 1400);
+      }, 500);
+    });
+
+    it('should do something else', function() {
+      setTimeout(function() {
+        chai.expect(3).to.equal(2);
+      }, 500);
+    });
+  });  
+  </script>
+  <script>
+  mocha.run();
+  </script>
+</body>
+</html>
