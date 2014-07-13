@@ -1,6 +1,7 @@
 (function() {
     'use strict';
-    var isPatched = false;
+    var isPatched = false;  
+    var outstandingOps = 0;
 
     window.__asynculousOriginals = {};
 
@@ -10,6 +11,7 @@
       origIt(description, function(done) {
         _done = done;
         patchAsyncs();
+        outstandingOps = 0;
 
         var result;
         var error;
@@ -28,12 +30,16 @@
       });
     };
 
-    var outstandingOps = 0;
     var timers = [];
 
-    function wrapCallback(callback) {
+    function wrapCallback(callback, name) {
       return function() {
-        outstandingOps--;
+        // setIntervals outstanding operations
+        // is cleared by clearInterval, and not
+        // by calling the callback
+        if (name !== 'setInterval') {
+          outstandingOps--;
+        }
         try {
           var result = callback();
           callIfDone();
@@ -73,7 +79,7 @@
           window[setName] = function() {
             var args = [].slice.call(arguments, 0);
             var callback = args[0];
-            var wrappedCallback = wrapCallback(callback);
+            var wrappedCallback = wrapCallback(callback, setName);
             args[0] = wrappedCallback;
             outstandingOps++;
             var timer = origSet.apply(window, args);

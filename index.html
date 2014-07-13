@@ -14,7 +14,17 @@
     it('should work with single setTimeout', function() {
       setTimeout(function() {
         throw new Error('expected');
-      }, 500);
+      }, 50);
+    });
+
+    it('should work with setInterval', function() {
+      var counter = 0;
+      setInterval(function() {
+        counter++;
+        if (counter == 4) {
+          throw new Error('expected');
+        }
+      }, 50);
     });
 
     it('should work with double setTimeout', function() {
@@ -22,8 +32,8 @@
         chai.expect(1).to.equal(1);
         setTimeout(function() {
           throw new Error('expected');
-        }, 1400);
-      }, 500);
+        }, 140);
+      }, 50);
     });
 
     it('should work with clearTimeout', function() {
@@ -31,10 +41,10 @@
         chai.expect(1).to.equal(1);
         var timer = setTimeout(function() {
           throw new Error('unexpected');
-        }, 1400);
+        }, 140);
         clearTimeout(timer);
         throw new Error('expected');
-      }, 500);
+      }, 50);
     });
 
     it('should work with requestAnimationFrame', function() {
