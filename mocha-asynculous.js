@@ -2,7 +2,7 @@
     'use strict';
     var isPatched = false;
 
-    window.__asynculous = {};
+    window.__asynculousOriginals = {};
 
     var origIt = window.it;
     var _done;
@@ -19,7 +19,7 @@
           error = e;
         }
         if (outstandingOps === 0) {
-          resetAsyncs();
+          restoreAsyncs();
         }
         if (error) {
           _done(error);
@@ -81,7 +81,7 @@
             return timer;
           };
 
-          window.__asynculous[setName] = origSet;
+          window.__asynculousOriginals[setName] = origSet;
         }
 
         if (origClear) {
@@ -94,25 +94,22 @@
             return origClear(timer);
           };
 
-          window.__asynculous[clearName] = origClear;
+          window.__asynculousOriginals[clearName] = origClear;
         }
-
-        
-        
       });
     }
 
-    function resetAsyncs() {
+    function restoreAsyncs() {
       isPatched = false;
-      for (var key in window.__asynculous) {
-        window[key] = window.__asynculous[key];
+      for (var key in window.__asynculousOriginals) {
+        window[key] = window.__asynculousOriginals[key];
       }
     } 
 
     function callIfDone() {
       if (outstandingOps === 0) {
         _done();
-        resetAsyncs();
+        restoreAsyncs();
       }
     }
   }());
