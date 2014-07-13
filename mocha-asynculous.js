@@ -20,12 +20,17 @@
         } catch(e) {
           error = e;
         }
+        
         if (outstandingOps === 0) {
           restoreAsyncs();
         }
+
         if (error) {
           _done(error);
+        } else if(outstandingOps === 0) {
+          _done();
         }
+        
         return result;
       });
     };
