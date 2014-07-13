@@ -1,12 +1,28 @@
 (function() {
     'use strict';
+    var isPatched = false;
+
     var origIt = window.it;
     var _done;
     window.it = function(description, test) {
       origIt(description, function(done) {
         _done = done;
         patchAsyncs();
-        test();
+
+        var result;
+        var error;
+        try {
+          result = test();
+        } catch(e) {
+          error = e;
+        }
+        if (outstandingOps === 0) {
+          resetAsyncs();
+        }
+        if (error) {
+          _done(error);
+        }
+        return result;
       });
     };
 
@@ -14,6 +30,10 @@
     var timers = [];
 
     function patchAsyncs() {
+      if (isPatched) {
+        debugger;
+      }
+      isPatched = true;
       var origSetTimeout = window.setTimeout;
       var origClearTimeout = window.clearTimeout;
 
@@ -48,6 +68,7 @@
     }
 
     function resetAsyncs() {
+      isPatched = false;
       for (var key in window.__asynculous) {
         window[key] = window.__asynculous[key];
       }
