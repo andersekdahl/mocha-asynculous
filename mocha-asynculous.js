@@ -31,6 +31,19 @@
     var outstandingOps = 0;
     var timers = [];
 
+    function wrapCallback(callback) {
+      return function() {
+        outstandingOps--;
+        try {
+          var result = callback();
+          callIfDone();
+          return result;
+        } catch(e) {
+          _done(e);
+        }
+      };
+    }
+
     function patchAsyncs() {
       if (isPatched) {
         debugger;
@@ -41,50 +54,51 @@
     }
 
     function patchSetClearAsyncs() {
-      ['Timeout', 'Interval', 'Immediate'].forEach(function(name) {
+      ['Timeout', 'Interval', 'Immediate', 
+       'requestAnimationFrame', 'mozRequestAnimationFrame',
+       'webkitRequestAnimationFrame'].forEach(function(name) {
         var timers = [];
 
         var setName = 'set' + name;
         var clearName = 'clear' + name;
 
+        if (!window[setName] && !window[clearName] && window[name]) {
+          setName = name;
+        }
+
         var origSet = window[setName];
         var origClear = window[clearName];
 
-        if (!origSet) {
-          // setImmediate is not implemented everywhere
-          return;
+        if (origSet) {
+          window[setName] = function() {
+            var args = [].slice.call(arguments, 0);
+            var callback = args[0];
+            var wrappedCallback = wrapCallback(callback);
+            args[0] = wrappedCallback;
+            outstandingOps++;
+            var timer = origSet.apply(window, args);
+            timers.push(timer);
+            return timer;
+          };
+
+          window.__asynculous[setName] = origSet;
         }
 
-        window[setName] = function() {
-          var args = [].slice.call(arguments, 0);
-          var callback = args[0];
-          var wrappedCallback = function() {
-            outstandingOps--;
-            try {
-              callback();
-              callIfDone();
-            } catch(e) {
-              _done(e);
+        if (origClear) {
+          window[clearName] = function(timer) {
+            var index = timers.indexOf(timer);
+            if (index !== -1) {
+              timers.splice(index, 1);
+              outstandingOps--;
             }
+            return origClear(timer);
           };
-          args[0] = wrappedCallback;
-          outstandingOps++;
-          var timer = origSet.apply(window, args);
-          timers.push(timer);
-          return timer;
-        };
 
-        window[clearName] = function(timer) {
-          var index = timers.indexOf(timer);
-          if (index !== -1) {
-            timers.splice(index, 1);
-            outstandingOps--;
-          }
-          return origClear(timer);
-        };
+          window.__asynculous[clearName] = origClear;
+        }
 
-        window.__asynculous[setName] = origSet;
-        window.__asynculous[clearName] = origClear;
+        
+        
       });
     }
 
