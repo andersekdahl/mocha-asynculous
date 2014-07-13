@@ -16,7 +16,6 @@
     var callCount = 0;
     function incrementCallCount() {
       callCount++;
-      throw new Error('expected');
     }
 
     it('should work with single setTimeout', function() {
@@ -67,11 +66,21 @@
 
     it('should work in sync mode', function() {
       incrementCallCount();
-      expect(callCount).to.equal(6);
+      expect(callCount).to.equal(7);
+    });
+
+    it('should be able to catch events', function() {
+      var p = document.createElement('p');
+      document.body.appendChild(p);
+      p.onclick = function() {
+        incrementCallCount();
+        expect(callCount).to.equal(7);
+      }
+      p.dispatchEvent(new Event('click'));
     });
 
     it('should have called all async operations', function() {
-      expect(callCount).to.equal(6);
+      expect(callCount).to.equal(7);
     });
   });  
   </script>

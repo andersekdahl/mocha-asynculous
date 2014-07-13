@@ -7,8 +7,9 @@
 
     var origIt = window.it;
     var _done;
-    window.it = function(description, test) {
-      origIt(description, function(done) {
+
+    function asynculousIt(test) {
+      return function(done) {
         _done = done;
         patchAsyncs();
         outstandingOps = 0;
@@ -30,9 +31,15 @@
         } else if(outstandingOps === 0) {
           _done();
         }
-        
+
         return result;
-      });
+      }
+    }
+
+    window.it = function(description, test) {
+      var wrappedTest = asynculousIt(test);
+      wrappedTest.toString = test.toString.bind(test);
+      origIt(description, wrappedTest);
     };
 
     var timers = [];
@@ -61,7 +68,8 @@
       }
       isPatched = true;
       
-      patchSetClearAsyncs();      
+      patchSetClearAsyncs();
+      patchEventHandlers();   
     }
 
     function patchSetClearAsyncs() {
@@ -82,12 +90,11 @@
 
         if (origSet) {
           window[setName] = function() {
-            var args = [].slice.call(arguments, 0);
-            var callback = args[0];
+            var callback = arguments[0];
             var wrappedCallback = wrapCallback(callback, setName);
-            args[0] = wrappedCallback;
+            arguments[0] = wrappedCallback;
             outstandingOps++;
-            var timer = origSet.apply(window, args);
+            var timer = origSet.apply(window, arguments);
             timers.push(timer);
             return timer;
           };
@@ -110,11 +117,40 @@
       });
     }
 
+    function catchAllEventHandler(event) {
+      var element = event.target;
+      var onproperty = 'on' + event.type;
+      do {
+        if (typeof element[onproperty] == 'function') {
+          var origEventHandler = element[onproperty];
+          element[onproperty] = function() {
+            try {
+              return origEventHandler.call(this, arguments);
+            } catch(e) {
+              _done(e);
+              throw e;
+            }
+          }
+        }
+      } while((element = element.parentElement) !== null);
+    }
+
+    var events = 'copy cut paste abort blur focus canplay canplaythrough change click contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop durationchange emptied ended input invalid keydown keypress keyup load loadeddata loadedmetadata loadstart mousedown mouseenter mouseleave mousemove mouseout mouseover mouseup pause play playing progress ratechange reset scroll seeked seeking select show stalled submit suspend timeupdate volumechange waiting mozfullscreenchange mozfullscreenerror mozpointerlockchange mozpointerlockerror error webglcontextrestored webglcontextlost webglcontextcreationerror'.split(' ');
+    function patchEventHandlers() {
+      events.forEach(function(property) {
+        document.addEventListener(property, catchAllEventHandler, true);
+      });
+    }
+
     function restoreAsyncs() {
       isPatched = false;
       for (var key in window.__asynculousOriginals) {
         window[key] = window.__asynculousOriginals[key];
       }
+
+      events.forEach(function(property) {
+        document.removeEventListener(property, catchAllEventHandler);
+      });
     } 
 
     function callIfDone() {
