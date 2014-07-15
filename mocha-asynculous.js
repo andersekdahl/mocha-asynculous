@@ -69,7 +69,16 @@
       isPatched = true;
       
       patchSetClearAsyncs();
-      patchEventHandlers();   
+      patchEventHandlers();
+
+      ['EventTarget', 'Window', 'XMLHttpRequestEventTarget', 'XMLHttpRequestUpload']
+        .filter(function (eventTarget) {
+          return window[eventTarget];
+        })
+        .map(function (eventTarget) {
+          return window[eventTarget].prototype;
+        })
+        .forEach(patchEventTarget);
     }
 
     function patchSetClearAsyncs() {
@@ -142,6 +151,52 @@
       });
     }
 
+    function patchEventTarget(eventTargetPrototype) {
+      var origAddEventListener = eventTargetPrototype.addEventListener;
+      var origRemoveEventListener = eventTargetPrototype.removeEventListener;
+
+      if (origAddEventListener.__isPatched) {
+        return;
+      }
+
+      var wrappedEventListeners = [];
+
+      eventTargetPrototype.addEventListener = function addEventListener(event) {
+        var callback = arguments[1];
+        var wrappedCallback = function() {
+          try {
+            console.log('running wrapped addEventListener', event, callback.toString());
+            return callback.apply(this, arguments);
+          } catch(e) {
+            _done(e);
+          }
+        };
+
+        wrappedEventListeners.push({
+          callback: callback, 
+          element: this,
+          event: arguments[0]
+        });
+
+        arguments[1] = wrappedCallback;
+        return origAddEventListener.apply(this, arguments);
+      };
+
+      eventTargetPrototype.addEventListener.__isPatched = true;
+
+      eventTargetPrototype.removeEventListener = function(event, callback) {
+        var element = this;
+        for (var i = 0; i < wrappedEventListeners.length; i++) {
+          var wrapped = wrappedEventListeners[i];
+          if (wrapped.event === event && wrapped.callback === callback && element === wrapped.element) {
+            arguments[1] = wrapped.callback;
+            wrappedEventListeners.splice(i, 1);
+            return origRemoveEventListener.apply(this, arguments);
+          }
+        }
+      };
+    }
+
     function restoreAsyncs() {
       isPatched = false;
       for (var key in window.__asynculousOriginals) {
@@ -151,6 +206,8 @@
       events.forEach(function(property) {
         document.removeEventListener(property, catchAllEventHandler);
       });
+
+      // TODO: Restore addEventHandler/removeEventHandler
     } 
 
     function callIfDone() {

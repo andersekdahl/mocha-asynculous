@@ -66,10 +66,10 @@
 
     it('should work in sync mode', function() {
       incrementCallCount();
-      expect(callCount).to.equal(7);
+      expect(callCount).to.equal(6);
     });
 
-    it('should be able to catch events', function() {
+    it('should be able to catch property events', function() {
       var p = document.createElement('p');
       document.body.appendChild(p);
       p.onclick = function() {
@@ -79,8 +79,18 @@
       p.dispatchEvent(new Event('click'));
     });
 
+    it('should be able to catch addEventListener events', function() {
+      var p = document.createElement('p');
+      document.body.appendChild(p);
+      p.addEventListener('click', function() {
+        incrementCallCount();
+        expect(callCount).to.equal(8);
+      });
+      p.dispatchEvent(new Event('click'));
+    });
+
     it('should have called all async operations', function() {
-      expect(callCount).to.equal(7);
+      expect(callCount).to.equal(8);
     });
   });  
   </script>
